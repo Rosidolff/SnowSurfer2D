@@ -4,20 +4,27 @@ using UnityEngine.InputSystem; //para hacer uso del input system de Unity, para 
 public class PlayerController : MonoBehaviour
 {
 
-    SurfaceEffector2D surfaceEffector2D;
-    float baseSpeed; //variable para almacenar la velocidad base del jugador
     [SerializeField] private float boostSpeed = 30f; //variable para almacenar la velocidad del jugador cuando se activa el impulso
     [SerializeField] private float torqueAmount = 5f; //variable para almacenar la cantidad de inclinación que se aplicará al jugador
-
-    InputAction moveAction; //variable para almacenar la acción de movimiento del jugador
-    Vector2 moveInput; //variable para almacenar la entrada de movimiento del jugador
-    Rigidbody2D rb; //variable para almacenar el componente Rigidbody del jugador
-
     [SerializeField] private ParticleSystem snowEffect;
     [SerializeField] private ParticleSystem boostEffect;
+    [SerializeField] private ScoreManager scoreManager; //variable para almacenar la referencia al ScoreManager
 
+    SurfaceEffector2D surfaceEffector2D;
+    Rigidbody2D rb; //variable para almacenar el componente Rigidbody del jugador
+
+    float baseSpeed; //variable para almacenar la velocidad base del jugador
+    Vector2 moveInput; //variable para almacenar la entrada de movimiento del jugador
+    InputAction moveAction; //variable para almacenar la acción de movimiento del jugador
+    float previousRotation; //variable para almacenar la rotación anterior del jugador
+    float totalRotation; //variable para almacenar la rotación total del jugador
+    int flipCount; //variable para almacenar el número de giros que ha hecho el jugador
+
+    
     private bool canControlPlayer = true; // Bandera ara ver si podemos controlar el pj o no. Control + . crea un getter y setter para la variable canControlPlayer
     public bool CanControlPlayer { get => canControlPlayer; set => canControlPlayer = value; }
+
+
 
     void Start()
     {
@@ -32,6 +39,24 @@ public class PlayerController : MonoBehaviour
         if (!canControlPlayer) return; //si no podemos controlar el jugador, salimos de la función Update
         PlayerTorque(); //llama a la función PlayerTorque para aplicar la inclinación al jugador
         BoostPlayer(); // para el impulso
+        CalculateFlips();
+    }
+
+    /// <summary>
+    /// Calcula el numero de giros y rotaciones que hace el jugador cuando salta. 
+    /// </summary>
+    private void CalculateFlips()
+    { 
+        float currentRotation = transform.rotation.eulerAngles.z; //obtiene la rotación actual del jugador en el eje Z
+        totalRotation += Mathf.DeltaAngle(previousRotation, currentRotation); //el cambio en rotación desde el ultimo frame.
+        if (totalRotation >= 340 || totalRotation < -340)
+        {
+            flipCount++; //incrementa el contador de giros
+            scoreManager.AddScore(flipCount * 100); //actualiza la puntuación del jugador
+            Debug.Log($"Player has performed {flipCount} flips"); //muestra en la consola el número de giros que ha hecho el jugador
+            totalRotation = 0; //reinicia la rotación total
+        }
+        previousRotation = currentRotation; //actualiza la rotación anterior para el siguiente frame
     }
 
     /// <summary>
@@ -83,4 +108,5 @@ public class PlayerController : MonoBehaviour
             snowEffect.Stop();
          }
     }
+     
 }
