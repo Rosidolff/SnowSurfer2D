@@ -7,16 +7,27 @@ public class FinishLine : MonoBehaviour
     [SerializeField] private ParticleSystem finishEffect; // Efecto de partículas al llegar a la meta
     void OnTriggerEnter2D(Collider2D other) // Se llama cuando otro collider entra en el trigger de este objeto
     {
-        if (other.CompareTag("Player")) // Verifica si el objeto que colisiona tiene la etiqueta "Player"
+        if (other.CompareTag("Player"))
+{
+    Debug.Log("Player has crossed the finish line!");
+    finishEffect.Play();
+    Invoke(nameof(NextLevel), reloadDelay);
+}
+    }
+
+void NextLevel()
+{
+    int unlockedLevel = PlayerPrefs.GetInt("UnlockedLevel", 1);
+    PlayerPrefs.SetInt("UnlockedLevel", unlockedLevel + 1);
+    PlayerPrefs.Save();
+    if (unlockedLevel >=6)
         {
-            Debug.Log("Finish Line Reached!");
-            //TODO: Implementar la lógica para finalizar el nivel o mostrar un mensaje de victoria
-            finishEffect.Play(); // Reproduce el efecto de partículas al llegar a la meta
-            Invoke(nameof(ReloadScene), reloadDelay); // Llama a la función ReloadScene después del retraso especificado
+            SceneManager.LoadScene("Menu");
         }
-    }
-    void ReloadScene()
-    {
-        SceneManager.LoadSceneAsync(SceneManager.GetActiveScene().buildIndex); // Recarga la escena actual
-    }
+    else
+        {
+    SceneManager.LoadScene($"level{unlockedLevel+1}");
+        }
+}
+
 }
