@@ -1,112 +1,152 @@
+using System;
 using UnityEngine;
-using UnityEngine.InputSystem; //para hacer uso del input system de Unity, para los controles de movimiento del jugador
+using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
-
-    [SerializeField] private float boostSpeed = 30f; //variable para almacenar la velocidad del jugador cuando se activa el impulso
-    [SerializeField] private float torqueAmount = 5f; //variable para almacenar la cantidad de inclinación que se aplicará al jugador
+    [SerializeField] private float torqueAmount = 1f;
+    [SerializeField] private float bootsSpeed = 35f;
     [SerializeField] private ParticleSystem snowEffect;
-    [SerializeField] private ParticleSystem boostEffect;
-    [SerializeField] private ScoreManager scoreManager; //variable para almacenar la referencia al ScoreManager
-
+    [SerializeField] private ScoreManager scoreManager;
+    
     SurfaceEffector2D surfaceEffector2D;
-    Rigidbody2D rb; //variable para almacenar el componente Rigidbody del jugador
+    Rigidbody2D rb;
 
-    float baseSpeed; //variable para almacenar la velocidad base del jugador
-    Vector2 moveInput; //variable para almacenar la entrada de movimiento del jugador
-    InputAction moveAction; //variable para almacenar la acción de movimiento del jugador
-    float previousRotation; //variable para almacenar la rotación anterior del jugador
-    float totalRotation; //variable para almacenar la rotación total del jugador
-    int flipCount; //variable para almacenar el número de giros que ha hecho el jugador
+    float baseSpeed;    
+    InputAction moveAction;
+    Vector2 moveInput;
+    float previousRotation; // Store the previous rotation of the player
+    float totalRotation; // Store the total rotation of the player
+    int flipCount; // Store the number of flips performed by the player
+
+    int activePowerUpsCount; // Track the number of active power-ups
 
     
-    private bool canControlPlayer = true; // Bandera ara ver si podemos controlar el pj o no. Control + . crea un getter y setter para la variable canControlPlayer
+    private bool canControlPlayer = true; // Flag to control player input
+
     public bool CanControlPlayer { get => canControlPlayer; set => canControlPlayer = value; }
 
-
-
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        moveAction = InputSystem.actions.FindAction("Move"); //busca la acción de movimiento en el Input System       
-        rb = GetComponent<Rigidbody2D>();
-        surfaceEffector2D = Object.FindAnyObjectByType<SurfaceEffector2D>(); 
-        baseSpeed = surfaceEffector2D.speed; //guarda la velocidad incial en el baseSpeed
-    }
 
+        // Activate the selected character model
+        transform.GetChild(0).GetChild(PlayerPrefs.GetInt("SelectedCharacter", 0)).gameObject.SetActive(true);
+
+        moveAction = InputSystem.actions.FindAction("Move");
+        rb = GetComponent<Rigidbody2D>();
+        surfaceEffector2D = FindAnyObjectByType<SurfaceEffector2D>();
+        baseSpeed = surfaceEffector2D.speed; // Store the initial speed of the SurfaceEffector2D
+    }
+    
+
+    // Update is called once per frame
     void Update()
     {
-        if (!canControlPlayer) return; //si no podemos controlar el jugador, salimos de la función Update
-        PlayerTorque(); //llama a la función PlayerTorque para aplicar la inclinación al jugador
-        BoostPlayer(); // para el impulso
-        CalculateFlips();
+        if (!canControlPlayer) return; // If player input is disabled, exit the method
+        
+        PlayerTorque();     
+        BoostPlayer();
+        CalculateFlips();        
+        
     }
 
     /// <summary>
-    /// Calcula el numero de giros y rotaciones que hace el jugador cuando salta. 
+    /// Calculates the number of flips the player has performed based on their rotation 
     /// </summary>
     private void CalculateFlips()
-    { 
-        float currentRotation = transform.rotation.eulerAngles.z; //obtiene la rotación actual del jugador en el eje Z
-        totalRotation += Mathf.DeltaAngle(previousRotation, currentRotation); //el cambio en rotación desde el ultimo frame.
-        if (totalRotation >= 340 || totalRotation < -340)
+    {
+        // Get the current rotation of the player in degrees
+        float currentRotation = transform.rotation.eulerAngles.z; 
+        // Calculate the change in rotation since the last frame
+        totalRotation += Mathf.DeltaAngle(previousRotation, currentRotation); 
+        
+        if (Math.Abs(totalRotation)> 340)
         {
-            flipCount++; //incrementa el contador de giros
-            scoreManager.AddScore(flipCount * 100); //actualiza la puntuación del jugador
-            Debug.Log($"Player has performed {flipCount} flips"); //muestra en la consola el número de giros que ha hecho el jugador
-            totalRotation = 0; //reinicia la rotación total
+            flipCount++; // Increment the flip count if the total rotation exceeds 360 degrees
+            
+            scoreManager.AddScore(flipCount*100); 
+
+            totalRotation = 0; // Reset the total rotation for the next flip            
         }
-        previousRotation = currentRotation; //actualiza la rotación anterior para el siguiente frame
+
+        previousRotation = currentRotation; // Update the previous rotation for the next frame
+        
     }
 
     /// <summary>
-    /// Aplica una fuerza de torque al jugador en función de la entrada de movimiento del jugador
+    /// Applies torque to the player based on the horizontal input from the Move action.
     /// </summary>
     void PlayerTorque()
-    
     {
-        moveInput = moveAction.ReadValue<Vector2>(); //lee la entrada de movimiento del jugador y la almacena en la variable moveInput
-        // Debug.Log("Move Input: " + moveInput); //es lo mismo que la linea de abajo, pero la de abajo es más profesional.
-        // Debug.Log($"Move Input: {moveInput} " ); //muestra en la consola la entrada de movimiento del jugador
-        if (moveInput.x < 0) //si la entrada de movimiento del jugador es menor que 0, significa que el jugador está moviéndose hacia la izquierda
+        moveInput = moveAction.ReadValue<Vector2>(); 
+        if (moveInput.x < 0)
         {
-            rb.AddTorque(torqueAmount); //aplica una fuerza de torque al jugador en función de la entrada de movimiento del jugador
+            rb.AddTorque(torqueAmount);
         }
-        else if (moveInput.x > 0) //si la entrada de movimiento del jugador es mayor que 0, significa que el jugador está moviéndose hacia la derecha
+        else if (moveInput.x > 0)
         {
             rb.AddTorque(-torqueAmount);
         }
+        
     }
+
     void BoostPlayer()
     {
-        if (moveInput.y > 0) //si la entrada de movimiento del jugador es mayor que 0, significa que el jugador está moviéndose hacia arriba
-        {
-            surfaceEffector2D.speed = boostSpeed; //aumenta la velocidad del jugador
-            boostEffect.Play();
-        } 
+        //Increase the player's speed when the up arrow key is pressed
+        //Surface Efector speed is increased to bootsSpeed
+        if (moveInput.y > 0)
+        {     
+            surfaceEffector2D.speed = bootsSpeed; 
+        }
         else
-        {
-            surfaceEffector2D.speed = baseSpeed; //restaura la velocidad del jugador   
-            boostEffect.Stop(); 
+        {         
+            surfaceEffector2D.speed = baseSpeed; // Return to normal speed
         }
     }
+
+    // Detects when the player collides with the floor and plays the snow effect
     void OnCollisionEnter2D(Collision2D collision)
     {
         int layerIndex = LayerMask.NameToLayer("Floor");
         if (collision.gameObject.layer == layerIndex)
-        {
-            snowEffect.Play();
-         }
+        {            
+            snowEffect.Play();            
+        }
     }
 
-
+    // Detects when the player exits the collision with the floor and stops the snow effect
     void OnCollisionExit2D(Collision2D collision)
     {
         int layerIndex = LayerMask.NameToLayer("Floor");
         if (collision.gameObject.layer == layerIndex)
-        {
+        {            
             snowEffect.Stop();
-         }
+        }
     }
-     
+
+    public void ApplyPowerUp(PowerUpScriptableObject powerUpData)
+    {
+        activePowerUpsCount++; // Increment the count of active power-ups
+        if (powerUpData.PowerUpType == "Speed")
+        {
+            baseSpeed += powerUpData.PowerUpValue; // Increase the base speed by the power-up value
+            bootsSpeed += powerUpData.PowerUpValue; // Increase the boots speed by the power-up value
+        }
+    }
+
+    public void DeactivatePowerUp(PowerUpScriptableObject powerUpData)
+    {
+        activePowerUpsCount--; // Decrement the count of active power-ups
+        if (activePowerUpsCount == 0)
+        {
+            if (powerUpData.PowerUpType == "Speed")
+            {
+                baseSpeed -= powerUpData.PowerUpValue; // Decrease the base speed by the power-up value
+                bootsSpeed -= powerUpData.PowerUpValue; // Decrease the boots speed by the power-up value
+            }
+        }
+    }
+
+
 }
